@@ -3,6 +3,23 @@ import requests
 
 app = Flask(__name__)
 
+# Mock function to validate address
+def validate_address(address):
+    # Replace with actual logic to validate address
+    if address["countryCode"] == "US" and address["postalCode"].isdigit():
+        return {"valid": True}
+    else:
+        return {"valid": False}
+
+@app.route('/validate_address', methods=['POST'])
+def validate_address_endpoint():
+    address = request.json.get('address')
+    if not address:
+        return jsonify({"error": "address is required"}), 400
+    
+    validation_result = validate_address(address)
+    return jsonify(validation_result)
+
 # Mock function to get order info
 def get_order_info(order_id):
     # Replace with actual logic to fetch order info
