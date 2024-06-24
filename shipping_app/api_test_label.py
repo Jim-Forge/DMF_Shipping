@@ -2,7 +2,12 @@ import requests
 import base64
 import json
 
-API_KEY = '335b49e04a28f9d5d675e7c7d0e5d8907ca5d9c218506c1e04aa14be8a6799f2'  # Replace with your actual API key
+API_KEY = '65cfb6fee3b3d46497e66d4323df96565ca8da6cc5f83b83008ffb79e276c70c'  # Replace with your actual API key
+
+def get_nested_value(data, keys, default=None):
+    for key in keys:
+        data = data.get(key, default)
+    return data
 
 try:
     request_body = {
@@ -95,7 +100,7 @@ try:
         "labelParameters": {
             "currencyCode": "usd",
             "labelFormats": ["png", "zpl"],
-            "includeLabelImagesInResponse": True,
+            "includeLabelImagesInResponse": False,
             "customLabelEntries": {},
             "testMode": True
         },
@@ -114,6 +119,13 @@ try:
         raise Exception(f"Request failed with status code {response.status_code}: {response.text}")
 
     result = response.json()
-    print(result)
+    ##print(result.carrierSelection)
+
+    carrier_selection = result.get('carrierSelection')
+    ##print(carrier_selection)
+
+    # Example usage of get_nested_value
+    carrier_name = get_nested_value(result, ['carrierSelection', 'carrierName'])
+    print(f"Carrier Name: {carrier_name}")
 except Exception as e:
     print(e)
