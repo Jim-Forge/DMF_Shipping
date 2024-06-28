@@ -1,4 +1,4 @@
-const API_KEY = '335b49e04a28f9d5d675e7c7d0e5d8907ca5d9c218506c1e04aa14be8a6799f2'; // Replace with your actual API key
+const API_KEY = '65cfb6fee3b3d46497e66d4323df96565ca8da6cc5f83b83008ffb79e276c70c'; // Replace with your actual API key
 
 const myHeaders = new Headers();
 myHeaders.append("Authorization", `Basic ${Buffer.from(API_KEY + ':').toString('base64')}`);
