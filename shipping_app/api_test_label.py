@@ -95,7 +95,7 @@ try:
         "labelParameters": {
             "currencyCode": "usd",
             "labelFormats": ["png", "zpl"],
-            "includeLabelImagesInResponse": True,
+            "includeLabelImagesInResponse": False,
             "customLabelEntries": {},
             "testMode": True
         },
@@ -114,6 +114,13 @@ try:
         raise Exception(f"Request failed with status code {response.status_code}: {response.text}")
 
     result = response.json()
-    print(result)
+    ##print(result.carrierSelection)
+
+    carrier_selection = result.get('carrierSelection')
+    ##print(carrier_selection)
+
+    # Example usage of get_nested_value
+    carrier_name = get_nested_value(result, ['carrierSelection', 'carrierName'])
+    print(f"Carrier Name: {carrier_name}")
 except Exception as e:
     print(e)
