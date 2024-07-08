@@ -11,7 +11,7 @@ app = Flask(__name__)
 
 @app.route('/process_order', methods=['POST'])
 def process_order():
-    order_id = request.json.get('order_id')
+    order_id = request.json.get('order_id') if request.json else None
     if not order_id:
         return jsonify({"error": "order_id is required"}), 400
     
@@ -38,3 +38,4 @@ def process_order():
 
 if __name__ == '__main__':
     app.run(debug=True)
+    app.run(host='0.0.0.0', port=5000)
