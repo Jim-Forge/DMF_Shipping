@@ -35,82 +35,30 @@ class _MyHomePageState extends State<MyHomePage> {
   final TextEditingController _orderIdController = TextEditingController();
   String _statusMessage = '';
 
-  Future<void> printLabel(String orderId) async {
+  Future<void> processOrder(String orderId) async {
+    setState(() {
+      _statusMessage = 'Processing...';
+    });
+
     try {
-      // Get order info
-      final orderInfoResponse = await http.get(Uri.parse('http://your-server-ip:5000/get_order_info?order_id=$orderId'));
-      if (orderInfoResponse.statusCode != 200) {
-        throw Exception('Failed to load order info');
-      }
-      final orderInfo = json.decode(orderInfoResponse.body);
-
-      // Generate shipping label
-      final labelResponse = await http.post(
-        Uri.parse('http://your-server-ip:5000/generate_label'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode(orderInfo),
-      );
-      if (labelResponse.statusCode != 200) {
-        throw Exception('Failed to generate label');
-      }
-      final labelInfo = json.decode(labelResponse.body);
-
-      // Print label
-      final printResponse = await http.post(
-        Uri.parse('http://your-server-ip:5000/print_label'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'label_url': labelInfo['label_url']}),
-      );
-      if (printResponse.statusCode != 200) {
-        throw Exception('Failed to print label');
-      }
-
-      setState(() {
-        _statusMessage = 'Label printed successfully';
-      });
-    } catch (e) {
-      setState(() {
-        _statusMessage = 'Error: ${e.toString()}';
-      });
-    }
-  }
-
-  Future<void> reprintLabel(String orderId) async {
-    try {
-      // Reprint existing label
-      final reprintResponse = await http.post(
-        Uri.parse('http://your-server-ip:5000/reprint_label'),
+      final response = await http.post(
+        Uri.parse('http://127.0.0.1:5000/process_order'),
         headers: {'Content-Type': 'application/json'},
         body: json.encode({'order_id': orderId}),
       );
-      if (reprintResponse.statusCode != 200) {
-        throw Exception('Failed to reprint label');
+
+      if (response.statusCode == 200) {
+        final labelInfo = json.decode(response.body);
+        setState(() {
+          _statusMessage =
+              'Label generated successfully. Carrier: ${labelInfo['carrier']}, Tracking Number: ${labelInfo['tracking_number']}';
+        });
+      } else {
+        final errorInfo = json.decode(response.body);
+        setState(() {
+          _statusMessage = 'Error: ${errorInfo['error']}';
+        });
       }
-
-      setState(() {
-        _statusMessage = 'Label reprinted successfully';
-      });
-    } catch (e) {
-      setState(() {
-        _statusMessage = 'Error: ${e.toString()}';
-      });
-    }
-  }
-
-  Future<void> cancelAndPrintNewLabel(String orderId) async {
-    try {
-      // Cancel existing label and print new one
-      final cancelResponse = await http.post(
-        Uri.parse('http://your-server-ip:5000/cancel_label'),
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'order_id': orderId}),
-      );
-      if (cancelResponse.statusCode != 200) {
-        throw Exception('Failed to cancel existing label');
-      }
-
-      // Print new label
-      await printLabel(orderId);
     } catch (e) {
       setState(() {
         _statusMessage = 'Error: ${e.toString()}';
@@ -141,42 +89,14 @@ class _MyHomePageState extends State<MyHomePage> {
               onPressed: () {
                 final orderId = _orderIdController.text;
                 if (orderId.isNotEmpty) {
-                  printLabel(orderId);
+                  processOrder(orderId);
                 } else {
                   setState(() {
                     _statusMessage = 'Please enter an Order ID';
                   });
                 }
               },
-              child: const Text('Print New Shipping Label'),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                final orderId = _orderIdController.text;
-                if (orderId.isNotEmpty) {
-                  reprintLabel(orderId);
-                } else {
-                  setState(() {
-                    _statusMessage = 'Please enter an Order ID';
-                  });
-                }
-              },
-              child: const Text('Reprint Existing Shipping Label'),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                final orderId = _orderIdController.text;
-                if (orderId.isNotEmpty) {
-                  cancelAndPrintNewLabel(orderId);
-                } else {
-                  setState(() {
-                    _statusMessage = 'Please enter an Order ID';
-                  });
-                }
-              },
-              child: const Text('Cancel Existing & Print New Shipping Label'),
+              child: const Text('Process Order'),
             ),
             const SizedBox(height: 20),
             Text(_statusMessage),
