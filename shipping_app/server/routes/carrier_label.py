@@ -115,7 +115,7 @@ def create_shipment_label():
             "includeEvaluatedServiceMethodsInResponse": False,
             "labelParameters": {
                 "currencyCode": "usd",
-                "labelFormats": ["zpl"],
+                "labelFormats": ["png"],
                 "includeLabelImagesInResponse": True,
                 "customLabelEntries": {},
                 "testMode": True
