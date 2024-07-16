@@ -24,29 +24,27 @@ def get_nested_value(dictionary, keys):
         return get_nested_value(dictionary.get(keys[0]), keys[1:])
     return None
 
-def create_shipment_label():
+def create_shipment_label(order_info, api_key):
     try:
         request_body = {
             "currencyCode": "usd",
             "shipmentParameters": {
-                "partnerShipmentId": None,
-                "orderedDateTime": "2024-06-05T22:04:58.203Z",
-                "shippedDateTime": "2024-06-05T22:04:58.203Z",
-                "desiredDeliveryDate": None,
-                "carrierName": None,
-                "carrierTrackingId": None,
+                "orderedDateTime": "2024-07-15T17:00:00.0Z",
+                "shippedDateTime": "2024-07-15T17:00:00.0Z",
+                "desiredDeliveryDate": "2024-10-15T17:00:00.0Z",
+                "preferredCarrierDeliveryDateTime": "2024-10-15T17:00:00.0Z",
+                "includePackagesArray": True,
+                "ignoreUpgradeSpendLimits": False,
                 "orderItemQuantities": [{
                     "productId": "123456",
                     "quantity": 1,
-                    "productDetails": [],
-                    "shipiumOrderId": None,
                     "hazmat": False,
                     "hazmatInfo": {
                         "category": None,
                         "quantity": 0,
-                        "quantityType": None,
-                        "quantityUnits": None,
-                        "containerType": None,
+                        "quantityType": "net",
+                        "quantityUnits": "oz",
+                        "containerType": "other",
                         "hazmatId": None,
                         "properShippingName": None,
                         "packingGroup": None,
@@ -84,7 +82,6 @@ def create_shipment_label():
                     "postalCode": "83646",
                     "addressType": "residential"
                 },
-                "shipOption": None,
                 "packagingType": {
                     "packagingMaterial": "box",
                     "packagingSizeName": "test-package",
@@ -105,7 +102,6 @@ def create_shipment_label():
                     "weight": 3
                 },
                 "shipmentTags": [],
-                "customsInfo": None,
                 "saturdayDelivery": False,
                 "fulfillmentContext": "test-tenant",
                 "fulfillmentType": "customer",
@@ -115,7 +111,7 @@ def create_shipment_label():
             "includeEvaluatedServiceMethodsInResponse": False,
             "labelParameters": {
                 "currencyCode": "usd",
-                "labelFormats": ["png"],
+                "labelFormats": ["zpl"],
                 "includeLabelImagesInResponse": True,
                 "customLabelEntries": {},
                 "testMode": True
@@ -135,30 +131,44 @@ def create_shipment_label():
             raise Exception(f"Request failed with status code {response.status_code}: {response.text}")
 
         result = response.json()
-        # logging.info("Full Response Body:")
-        # logging.info(json.dumps(result, indent=2))
 
-        # Example usage of get_nested_value
-        carrier_name = get_nested_value(result, ['carrierSelection', 'carrier'])
-        logging.info(f"Carrier: {carrier_name}")
+        label_info = {}
+        label_info['carrier'] = get_nested_value(result, ['carrierSelection', 'carrier'])
+        label_info['tracking_number'] = get_nested_value(result, ['carrierLabel', 'packageScannableId'])
+        label_info['service_method'] = get_nested_value(result, ['carrierSelection', 'serviceMethodName'])
 
-        tracking_number = get_nested_value(result, ['carrierLabel', 'packageScannableId'])
-        logging.info(f"Tracking Number: {tracking_number}")
-
-        service_method = get_nested_value(result, ['carrierSelection', 'serviceMethodName'])
-        logging.info(f"Service Method: {service_method}")
+        logging.info(f"Carrier: {label_info['carrier']}")
+        logging.info(f"Tracking Number: {label_info['tracking_number']}")
+        logging.info(f"Service Method: {label_info['service_method']}")
 
         documents = get_nested_value(result, ['carrierLabel', 'documents'])
-        # logging.info(f"Documents Array: {json.dumps(documents, indent=2)}")
 
         if documents and isinstance(documents, list) and len(documents) > 0:
-            label_image = documents[0].get('labelImage').get('imageContents')
-            logging.info(f"Label Image: {label_image}")
+            label_info['label_image'] = documents[0].get('labelImage', {}).get('imageContents')
+            logging.info(f"Label Image: {label_info['label_image']}")
         else:
             logging.error("Documents array is empty or not in the expected format")
+            label_info['label_image'] = None
+
+        return label_info
 
     except Exception as e:
         logging.error(f"An error occurred: {e}")
-
+        return None
 if __name__ == "__main__":
-    create_shipment_label()
+    # Create a sample order_info dictionary
+    order_info = {
+        # Add relevant order information here
+        # This should match the structure expected by your function
+    }
+
+    # Use the API_KEY defined earlier in your script
+    result = create_shipment_label(order_info, API_KEY)
+    
+    if result:
+        print("Shipment label created successfully.")
+        print(f"Carrier: {result['carrier']}")
+        print(f"Tracking Number: {result['tracking_number']}")
+        print(f"Service Method: {result['service_method']}")
+    else:
+        print("Failed to create shipment label.")

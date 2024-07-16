@@ -41,8 +41,8 @@ class _MyHomePageState extends State<MyHomePage> {
     });
 
     try {
-      final url = Uri.parse('https://postman-echo.com/get');
-      print('Request URL: ${url.toString()}'); // Log the full URL
+      final url = Uri.parse('http://127.0.0.1:5000/process_order');
+      print('Request URL: ${url.toString()}');
 
       final response = await http.post(
         url,
@@ -50,9 +50,8 @@ class _MyHomePageState extends State<MyHomePage> {
         body: json.encode({'order_id': orderId}),
       );
 
-      print(
-          'Response Status Code: ${response.statusCode}'); // Log the status code
-      print('Response Body: ${response.body}'); // Log the raw response body
+      print('Response Status Code: ${response.statusCode}');
+      print('Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final labelInfo = json.decode(response.body);
@@ -67,7 +66,7 @@ class _MyHomePageState extends State<MyHomePage> {
         });
       }
     } catch (e) {
-      print('Error: ${e.toString()}'); // Log any exceptions
+      print('Error: ${e.toString()}');
       setState(() {
         _statusMessage = 'Error: ${e.toString()}';
       });
