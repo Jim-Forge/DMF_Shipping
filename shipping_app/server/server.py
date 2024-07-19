@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+import site
+import sys
+sys.path.append(site.getusersitepackages())
 from flask import Flask, request, jsonify
 import requests
 from routes.address_validation import validate_address
