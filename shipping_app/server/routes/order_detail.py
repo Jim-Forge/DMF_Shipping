@@ -1,16 +1,16 @@
 import requests
 import json
 
-def get_sales_order(api_key, sales_order_id, company, fulfillment_center):
+
+def get_sales_order(api_key, order_id, company, fulfillment_center):
     try:
         headers = {
-            # "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "API-KEY-X": api_key,
         }
 
         params = {
-            "salesOrderId": sales_order_id,
+            "salesOrderId": order_id,
             "company": company,
             "fulfillmentCenter": fulfillment_center
         }
@@ -41,19 +41,9 @@ def get_sales_order(api_key, sales_order_id, company, fulfillment_center):
                 for item in data["data"]["details"]
             ]
         }
-
+        # print(required_details) 
         return required_details
     except requests.exceptions.RequestException as e:
         print(f"Error occurred: {e}")
         return None
 
-# Example usage
-api_key = "ZG1maW50ZWdyYXRpb25zQGRhdmluY2ltZmMuY29tfERhdmluQyQxXzIwMjQ="
-sales_order_id = "MR-TEST_SHIP_4"
-company = "Davinci Micro Fulfillment"
-fulfillment_center = "Bound Brook"
-required_details = get_sales_order(api_key, sales_order_id, company, fulfillment_center)
-if required_details:
-    print(f"Required Details: {required_details}")
-else:
-    print("Failed to retrieve required details.")
