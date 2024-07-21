@@ -8,10 +8,14 @@ from routes.address_validation import validate_address
 from routes.order_detail import get_sales_order
 from routes.carrier_label import create_shipment_label
 from routes.render_label import render_label_image
+from routes.print_label import print_shipping_label
 import subprocess
 import os
 from flask_cors import CORS
 import base64
+
+display_image_popup = True
+auto_print_label = False
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -23,7 +27,9 @@ JASCI_API_KEY = os.getenv('JASCI_API_KEY', 'ZG1maW50ZWdyYXRpb25zQGRhdmluY2ltZmMu
 @app.route('/process_order', methods=['POST'])
 def process_order():
     order_id = request.json.get('order_id') if request.json else None
-    display_image = request.json.get('display_image', True) if request.json else False
+    display_image = request.json.get('display_image', display_image_popup) if request.json else False
+    print_label = request.json.get('print_label', auto_print_label) if request.json else False
+
     if not order_id:
         return jsonify({"error": "order_id is required"}), 400
     
@@ -53,14 +59,22 @@ def process_order():
         
         # Step 4: Render and display label
         label_image_path = render_label_image(label_info['label_image'])
-        if label_image_path and display_image:
-            # Open the image using the default image viewer
-            if os.name == 'nt':  # Windows
-                os.startfile(label_image_path)
-            else:  # macOS and Linux
-                subprocess.call(['open', label_image_path])
+        if label_image_path:
+            if print_label:
+                print_shipping_label(label_image_path)
+            
+            encoded_image = None
+            if display_image:
+                with open(label_image_path, "rb") as image_file:
+                    encoded_image = base64.b64encode(image_file.read()).decode('utf-8')
+            
+            response_data = {
+                "label_info": label_info,
+                "label_image": encoded_image
+            }
+            return jsonify(response_data)
 
-        return jsonify(label_info)
+        return jsonify({"error": "Failed to render label image"}), 500
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
