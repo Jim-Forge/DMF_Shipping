@@ -3,26 +3,24 @@ import site
 import sys
 sys.path.append(site.getusersitepackages())
 from flask import Flask, request, jsonify
-import requests
 from routes.address_validation import validate_address
 from routes.order_detail import get_sales_order
 from routes.carrier_label import create_shipment_label
 from routes.render_label import render_label_image
 from routes.print_label import print_shipping_label
-import subprocess
+
 import os
-from flask_cors import CORS
 import base64
 
 display_image_popup = True
 auto_print_label = False
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+
 
 # API key setup
-SHIPIUM_API_KEY = os.getenv('SHIPIUM_API_KEY', '65cfb6fee3b3d46497e66d4323df96565ca8da6cc5f83b83008ffb79e276c70c')
-JASCI_API_KEY = os.getenv('JASCI_API_KEY', 'ZG1maW50ZWdyYXRpb25zQGRhdmluY2ltZmMuY29tfERhdmluQyQxXzIwMjQ=')
+SHIPIUM_API_KEY = os.getenv('SHIPIUM_API_KEY','65cfb6fee3b3d46497e66d4323df96565ca8da6cc5f83b83008ffb79e276c70c')
+JASCI_API_KEY = os.getenv('JASCI_API_KEY','ZG1maW50ZWdyYXRpb25zQGRhdmluY2ltZmMuY29tfERhdmluQyQxXzIwMjQ=')
 
 @app.route('/process_order', methods=['POST'])
 def process_order():
@@ -50,7 +48,10 @@ def process_order():
         })
 
         if not address_validation.startswith("The address is valid"):
-            return jsonify({"error": "Invalid address", "details": address_validation}), 400
+            return jsonify({
+                "error": "Invalid address",
+                "details": address_validation
+            }), 400
 
         # Step 3: Generate shipping label
         label_info = create_shipment_label(order_info, SHIPIUM_API_KEY)

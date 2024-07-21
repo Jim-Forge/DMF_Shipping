@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:math' as math;
 
 void main() {
   runApp(const MyApp());
@@ -57,15 +56,23 @@ class _MyHomePageState extends State<MyHomePage> {
           _statusMessage = 'Label generated successfully';
           _labelImageBase64 = responseData['label_image'];
         });
-      } else {
+    } else {
         final errorInfo = json.decode(response.body);
         setState(() {
-          _statusMessage = 'Error: ${errorInfo['error']}';
+          if (errorInfo['error'] == 'Invalid address') {
+            _statusMessage = 'Error: Invalid address\nDetails: ${errorInfo['details']}';
+          } else {
+            _statusMessage = 'Error: ${errorInfo['error']}';
+          }
         });
       }
     } catch (e) {
       setState(() {
-        _statusMessage = 'Network Error: ${e.toString()}';
+        if (e is http.ClientException) {
+          _statusMessage = 'Network Error: ${e.message}';
+        } else {
+          _statusMessage = 'Error: ${e.toString()}';
+        }
       });
     }
   }
@@ -101,20 +108,21 @@ class _MyHomePageState extends State<MyHomePage> {
                     });
                   }
                 },
-                child: const Text('Process Order'),
+                child: const Text('Generate Shipping Label'),
               ),
               const SizedBox(height: 20),
               Text(_statusMessage),
               const SizedBox(height: 20),
-              if (_labelImageBase64 != null && _labelImageBase64!.isNotEmpty)
-                Image.memory(
-                  base64Decode(_labelImageBase64!),
-                  width: 300,
-                  height: 300,
-                  fit: BoxFit.contain,
-                )
-              else
-                const Text('No label image available'),
+              if (_labelImageBase64 != null)
+                if (_labelImageBase64!.isNotEmpty)
+                  Image.memory(
+                    base64Decode(_labelImageBase64!),
+                    width: 300,
+                    height: 300,
+                    fit: BoxFit.contain,
+                  )
+                else
+                  const Text('No label image available')
             ],
           ),
         ),

@@ -18,19 +18,22 @@ def validate_address(shipium_api_key, address):
     
     try:
         response = requests.post(url, headers=headers, data=json.dumps(payload))
-        response.raise_for_status()  # Raises a HTTPError if the status is 4xx, 5xx
+        response.raise_for_status()
         
         result = response.json()
         
-        if result.get('valid'):
-            return "The address is valid."
-        else:
-            details = result.get('details', [])
-            if details:
-                error_messages = [f"{detail['errorCode']}: {detail['errorDescription']}" for detail in details]
-                return f"The address is not valid. Details: {'; '.join(error_messages)}"
-            else:
-                return "The address is not valid."
+        message = "The address is valid." if result.get('valid') else "The address is not valid."
+        
+        details = result.get('details', [])
+        if details:
+            error_messages = [f"{detail['errorCode']}: {detail['errorDescription']}" for detail in details]
+            message += f" Details: {'; '.join(error_messages)}"
+        
+        candidate = result.get('candidate')
+        if candidate:
+            message += f"\nCandidate: {json.dumps(candidate, indent=2)}"
+        
+        return message
     
     except requests.exceptions.RequestException as e:
         return f"An error occurred: {str(e)}"
