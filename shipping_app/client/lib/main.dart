@@ -2,74 +2,33 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-void main() {
-  runApp(const MyApp());
-}
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
+class OrderProcessingPage extends StatefulWidget {
   @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Shipping App',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
-      ),
-      home: const MyHomePage(title: 'Shipping App'),
-    );
-  }
+  _OrderProcessingPageState createState() => _OrderProcessingPageState();
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  final TextEditingController _orderIdController = TextEditingController();
-  String _statusMessage = '';
+class _OrderProcessingPageState extends State<OrderProcessingPage> {
+  String? labelImageBase64;
 
   Future<void> processOrder(String orderId) async {
-    setState(() {
-      _statusMessage = 'Processing...';
-    });
+    final response = await http.post(
+      Uri.parse('http://your_server_ip:5001/process_order'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(<String, dynamic>{
+        'order_id': orderId,
+        'display_image': false, // We'll display in Flutter instead
+      }),
+    );
 
-    try {
-      final url = Uri.parse('http://127.0.0.1:5001/process_order');
-      print('Request URL: ${url.toString()}');
-
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: json.encode({'order_id': orderId}),
-      );
-
-      print('Response Status Code: ${response.statusCode}');
-      print('Response Body: ${response.body}');
-
-      if (response.statusCode == 200) {
-        final labelInfo = json.decode(response.body);
-        setState(() {
-          _statusMessage =
-              'Label generated successfully. Carrier: ${labelInfo['carrier']}, Tracking Number: ${labelInfo['tracking_number']}';
-        });
-      } else {
-        final errorInfo = json.decode(response.body);
-        setState(() {
-          _statusMessage = 'Error: ${errorInfo['error']}';
-        });
-      }
-    } catch (e) {
-      print('Error: ${e.toString()}');
+    if (response.statusCode == 200) {
+      final Map<String, dynamic> data = json.decode(response.body);
       setState(() {
-        _statusMessage = 'Error: ${e.toString()}';
+        labelImageBase64 = data['label_image_base64'];
       });
+    } else {
+      throw Exception('Failed to process order');
     }
   }
 
@@ -77,36 +36,23 @@ class _MyHomePageState extends State<MyHomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text(widget.title),
+        title: Text('Order Processing'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            TextField(
-              controller: _orderIdController,
-              decoration: const InputDecoration(
-                labelText: 'Order ID',
-              ),
-            ),
-            const SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () {
-                final orderId = _orderIdController.text;
-                if (orderId.isNotEmpty) {
-                  processOrder(orderId);
-                } else {
-                  setState(() {
-                    _statusMessage = 'Please enter an Order ID';
-                  });
-                }
-              },
-              child: const Text('Process Order'),
+              onPressed: () => processOrder('your_order_id_here'),
+              child: Text('Process Order'),
             ),
-            const SizedBox(height: 20),
-            Text(_statusMessage),
+            SizedBox(height: 20),
+            if (labelImageBase64 != null)
+              Image.memory(
+                base64Decode(labelImageBase64!),
+                width: 300,
+                height: 300,
+              ),
           ],
         ),
       ),

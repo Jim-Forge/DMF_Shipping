@@ -7,8 +7,11 @@ import requests
 from routes.address_validation import validate_address
 from routes.order_detail import get_sales_order
 from routes.carrier_label import create_shipment_label
+from routes.render_label import render_label_image
+import subprocess
 import os
 from flask_cors import CORS
+import base64
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
@@ -20,6 +23,7 @@ JASCI_API_KEY = os.getenv('JASCI_API_KEY', 'ZG1maW50ZWdyYXRpb25zQGRhdmluY2ltZmMu
 @app.route('/process_order', methods=['POST'])
 def process_order():
     order_id = request.json.get('order_id') if request.json else None
+    display_image = request.json.get('display_image', True) if request.json else False
     if not order_id:
         return jsonify({"error": "order_id is required"}), 400
     
@@ -29,18 +33,14 @@ def process_order():
         print(f"Debug: get_sales_order returned: {order_info}")  # Add this line for debugging
         if not order_info:
             return jsonify({"error": "Failed to retrieve order information", "order_id": order_id}), 400
-        # return jsonify({"success": True, "message": "Order information retrieved successfully", "order_info": order_info})
-
 
         # Step 2: Validate address
-        # Modify this line in the process_order function
         address_validation = validate_address(SHIPIUM_API_KEY, {
             'street1': order_info['addressLine1'],
             'city': order_info['city'],
             'state': order_info['stateCode'],
             'postalCode': order_info['zipCode'],
             'countryCode': 'US',
-            # 'addressType': 'commercial'
         })
 
         if not address_validation.startswith("The address is valid"):
@@ -50,6 +50,15 @@ def process_order():
         label_info = create_shipment_label(order_info, SHIPIUM_API_KEY)
         if not label_info:
             return jsonify({"error": "Failed to generate shipping label"}), 400
+        
+        # Step 4: Render and display label
+        label_image_path = render_label_image(label_info['label_image'])
+        if label_image_path and display_image:
+            # Open the image using the default image viewer
+            if os.name == 'nt':  # Windows
+                os.startfile(label_image_path)
+            else:  # macOS and Linux
+                subprocess.call(['open', label_image_path])
 
         return jsonify(label_info)
 
