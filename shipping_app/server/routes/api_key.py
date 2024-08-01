@@ -32,7 +32,7 @@ def get_api_key(user_id, password):
 
 # Example usage
 user_id = "dmfintegrations@davincimfc.com"
-password = "DavinC$1_2024"
+password = "DavinC$2_2024"
 api_key = get_api_key(user_id, password)
 if api_key:
     print(f"API Key: {api_key}")

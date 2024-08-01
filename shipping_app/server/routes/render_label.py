@@ -5,7 +5,9 @@ import logging
 import requests
 import io
 
-def render_label_image(base64_zpl, file_name="shipping_label.png", display_image=False):
+label_image_popup = False
+
+def render_label_image(base64_zpl, file_name="shipping_label.png", display_image=label_image_popup):
     try:
         logging.info("Starting to render label image")
         

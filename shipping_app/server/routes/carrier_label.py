@@ -3,12 +3,27 @@ import base64
 import json
 import os
 import logging
+import functools
+import logging
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Load API key from environment variable
-API_KEY = os.getenv('SHIPIUM_API_KEY', '65cfb6fee3b3d46497e66d4323df96565ca8da6cc5f83b83008ffb79e276c70c')  # Replace with your actual API key or set it in the environment
+API_KEY = os.getenv('SHIPIUM_API_KEY', '65cfb6fee3b3d46497e66d4323df96565ca8da6cc5f83b83008ffb79e276c70')  # Replace with your actual API key or set it in the environment
+
+
+
+def alert_on_error(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            logging.error(f"Error in {func.__name__}: {str(e)}")
+            # Here you could add additional alerting logic, such as sending an email or a notification
+            raise  # Re-raise the exception after logging
+    return wrapper
 
 def get_nested_value(dictionary, keys):
     """
@@ -23,8 +38,8 @@ def get_nested_value(dictionary, keys):
     if isinstance(dictionary, dict):
         return get_nested_value(dictionary.get(keys[0]), keys[1:])
     return None
-
-def create_shipment_label(order_info, api_key):
+@alert_on_error
+def create_shipment_label(order_info):
     try:
         request_body = {
             "currencyCode": "usd",
@@ -69,17 +84,17 @@ def create_shipment_label(order_info, api_key):
                     "addressType": "commercial"
                 },
                 "destinationAddress": {
-                    "name": "Chelsea Jijawi",
-                    "phoneNumber": "5555555555",
+                    "name": order_info['firstName']+" "+order_info['lastName'],
+                    "phoneNumber": "5555555",
                     "phoneNumberCountryCode": None,
                     "emailAddress": None,
-                    "company": "N/A",
-                    "street1": "4207 N Elsinore Ave",
-                    "street2": None,
-                    "city": "Meridian",
-                    "state": "ID",
+                    "company": None,
+                    "street1": order_info['addressLine1'],
+                    "street2": order_info.get('addressLine2', None),
+                    "city": order_info['city'],
+                    "state": order_info['stateCode'],
                     "countryCode": "US",
-                    "postalCode": "83646",
+                    "postalCode": order_info['zipCode'],
                     "addressType": "residential"
                 },
                 "packagingType": {
@@ -119,7 +134,7 @@ def create_shipment_label(order_info, api_key):
             "asOfDate": None,
             "carrierServiceMethodAllowList": []
         }
-
+    
         headers = {
             'Authorization': f'Basic {base64.b64encode((API_KEY + ":").encode()).decode()}',
             'Content-Type': 'application/json'
@@ -155,20 +170,28 @@ def create_shipment_label(order_info, api_key):
     except Exception as e:
         logging.error(f"An error occurred: {e}")
         return None
+    
 if __name__ == "__main__":
     # Create a sample order_info dictionary
     order_info = {
-        # Add relevant order information here
-        # This should match the structure expected by your function
+        'orderId': '7',  # Add this line
+        'firstName': 'John',
+        'lastName': 'Doe',
+        'addressLine1': '123 Main St',
+        'city': 'Anytown',
+        'stateCode': 'NY',
+        'zipCode': '12345'
     }
 
-    # Use the API_KEY defined earlier in your script
-    result = create_shipment_label(order_info, API_KEY)
-    
-    if result:
-        print("Shipment label created successfully.")
-        print(f"Carrier: {result['carrier']}")
-        print(f"Tracking Number: {result['tracking_number']}")
-        print(f"Service Method: {result['service_method']}")
-    else:
-        print("Failed to create shipment label.")
+    try:
+        result = create_shipment_label(order_info)
+        
+        if result:
+            print("Shipment label created successfully.")
+            print(f"Carrier: {result['carrier']}")
+            print(f"Tracking Number: {result['tracking_number']}")
+            print(f"Service Method: {result['service_method']}")
+        else:
+            print("Failed to create shipment label.")
+    except Exception as e:
+        print(f"An error occurred: {str(e)}")
