@@ -31,10 +31,10 @@ def get_api_key(user_id, password):
         return None
 
 # Example usage
-user_id = "dmfintegrations@davincimfc.com"
-password = "DavinC$2_2024"
-api_key = get_api_key(user_id, password)
-if api_key:
-    print(f"API Key: {api_key}")
-else:
-    print("Failed to retrieve API key.")
+# user_id = "dmfintegrations@davincimfc.com"
+# password = "DavinC$2_2024"
+# api_key = get_api_key(user_id, password)
+# if api_key:
+#     print(f"API Key: {api_key}")
+# else:
+#     print("Failed to retrieve API key.")

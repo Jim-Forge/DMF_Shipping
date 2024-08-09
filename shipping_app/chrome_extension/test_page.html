@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Shipping App Test Page</title>
+</head>
+<body>
+  <h1>Shipping App Test</h1>
+  <input type="text" id="orderIdInput" placeholder="Enter Order ID">
+  <button id="shippingAppButton">Process Order</button>
+  
+  <!-- Add this iframe to load your Flutter web app -->
+  <!-- <iframe src="http://localhost:5001" width="800" height="600" allow="cross-origin-isolated"></iframe> -->
+
+  <script>
+    document.getElementById('shippingAppButton').addEventListener('click', function() {
+      const orderId = document.getElementById('orderIdInput').value;
+      if (orderId) {
+        console.log('Processing order:', orderId);
+        // This will be caught by the content script and forwarded to the Flutter app
+        window.postMessage({type: "FROM_PAGE", orderId: orderId}, "*");
+      } else {
+        console.log('Please enter an Order ID');
+      }
+    });
+  </script>
+</body>
+</html>
