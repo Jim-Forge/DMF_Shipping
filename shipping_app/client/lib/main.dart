@@ -62,7 +62,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  String _statusMessage = '';
+  // String _statusMessage = '';
 
   void _login() {
     // TODO: Implement actual login logic
