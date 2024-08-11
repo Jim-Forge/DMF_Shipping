@@ -16,4 +16,4 @@ if missing_padding:
 printer_name = "Zebra_Technologies_ZTC_GK420d"
 
 # Call print_shipping_label with the base64 ZPL string, is_zpl=True, and the specified printer name
-print_shipping_label(sample_base64_zpl, is_zpl=True, printer_name=printer_name)
+# print_shipping_label(sample_base64_zpl, is_zpl=True, printer_name=printer_name)

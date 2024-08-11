@@ -2,25 +2,21 @@ import requests
 import sys
 import json
 import logging
+import os
+from typing import Dict, Any, List
 
-# import_errors = []
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# try:
-#     from routes.error_alerting import handle_error
-#     logging.debug("Successfully imported handle_error")
-# except ImportError as e:
-#     logging.error(f"Error importing handle_error: {str(e)}")
-#     import_errors.append(("handle_error", str(e)))
+import_errors = []
 
-# if import_errors:
-#     logging.error(f"Failed to import the following modules: {', '.join([e[0] for e in import_errors])}")
-#     logging.error("Import errors details:")
-#     for module, error in import_errors:
-#         logging.error(f"  {module}: {error}")
-#     sys.exit(1)
+try:
+    from routes.product_detail import get_product_details
+    # logging.debug("Successfully imported get_product_details")
+except ImportError as e:
+    logging.error(f"Error importing get_product_details: {str(e)}")
+    import_errors.append(("get_product_details", str(e)))
 
-
-def get_sales_order(api_key, order_id, company, fulfillment_center):
+def get_sales_order(api_key: str, order_id: str, company: str, fulfillment_center: str) -> Dict[str, Any]:
     try:
         headers = {
             "Content-Type": "application/json",
@@ -33,17 +29,20 @@ def get_sales_order(api_key, order_id, company, fulfillment_center):
             "fulfillmentCenter": fulfillment_center
         }
 
-        # Log the full request body
-        logging.info(f"Request to Jasci API: GET https://uat-api.jasci.net/JasciRestApi/V2/salesOrder")
-        logging.info(f"Headers: {json.dumps(headers, indent=2)}")
-        logging.info(f"Params: {json.dumps(params, indent=2)}")
+        # logging.info(f"Request to Jasci API: GET https://uat-api.jasci.net/JasciRestApi/V2/salesOrder")
+        # logging.info(f"Headers: {json.dumps(headers, indent=2)}")
+        # logging.info(f"Params: {json.dumps(params, indent=2)}")
 
         response = requests.get("https://uat-api.jasci.net/JasciRestApi/V2/salesOrder", headers=headers, params=params)
         response.raise_for_status()
 
         data = response.json()
 
-        # Extract required details
+        product_values = [item["product"] for item in data["data"]["details"]]
+        product_details = get_product_details(api_key, product_values)
+        total_product_weight = sum(float(detail["productShippingWeight"]) for detail in product_details)
+        logging.info(f"Total product weight: {total_product_weight}")
+
         required_details = {
             "salesOrderId": data["data"]["salesOrderId"],
             "fulfillmentCenterId": data["data"]["fulfillmentCenterId"],
@@ -63,19 +62,18 @@ def get_sales_order(api_key, order_id, company, fulfillment_center):
                     "unitOfMeasureCode": item["unitOfMeasureCode"]
                 }
                 for item in data["data"]["details"]
-            ]
+            ],
+            "totalProductWeight": total_product_weight
         }
-        logging.info(f"Successfully retrieved order details for order_id: {order_id}")
+        # logging.info(f"Successfully retrieved order details for order_id: {order_id}")
         return required_details
     except requests.exceptions.RequestException as e:
         error_message = f"Error retrieving order details for order_id {order_id}: {str(e)}"
         logging.error(error_message)
         
-        # Parse the error message
         error_details = []
-        if "Address validation failed." in error_message:
-            # Split the error message by semicolons
-            errors = error_message.split(';')
+        if "Address validation failed." in str(e):
+            errors = str(e).split(';')
             for error in errors:
                 if ':' in error:
                     code, description = error.strip().split(':', 1)

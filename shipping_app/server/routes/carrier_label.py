@@ -26,13 +26,6 @@ def alert_on_error(func):
     return wrapper
 
 def get_nested_value(dictionary, keys):
-    """
-    Safely get a value from a nested dictionary.
-    
-    :param dictionary: The dictionary to search in
-    :param keys: A list of keys representing the path to the desired value
-    :return: The value if found, None otherwise
-    """
     if not keys:
         return dictionary
     if isinstance(dictionary, dict):
@@ -45,7 +38,7 @@ def create_shipment_label(order_info):
             "currencyCode": "usd",
             "shipmentParameters": {
                 "orderedDateTime": "2024-07-15T17:00:00.0Z",
-                "shippedDateTime": "2024-07-15T17:00:00.0Z",
+                "shippedDateTime": None,
                 "desiredDeliveryDate": "2024-10-15T17:00:00.0Z",
                 "preferredCarrierDeliveryDateTime": "2024-10-15T17:00:00.0Z",
                 "includePackagesArray": True,
@@ -57,9 +50,9 @@ def create_shipment_label(order_info):
                     "hazmatInfo": {
                         "category": None,
                         "quantity": 0,
-                        "quantityType": "net",
-                        "quantityUnits": "oz",
-                        "containerType": "other",
+                        "quantityType": None,
+                        "quantityUnits": None,
+                        "containerType": None,
                         "hazmatId": None,
                         "properShippingName": None,
                         "packingGroup": None,
@@ -98,8 +91,8 @@ def create_shipment_label(order_info):
                     "addressType": "residential"
                 },
                 "packagingType": {
-                    "packagingMaterial": "box",
-                    "packagingSizeName": "test-package",
+                    "packagingMaterial": None,
+                    "packagingSizeName": None,
                     "packagingTypeId": None,
                     "linearDimensions": {
                         "linearUnit": "in",
@@ -152,15 +145,15 @@ def create_shipment_label(order_info):
         label_info['tracking_number'] = get_nested_value(result, ['carrierLabel', 'packageScannableId'])
         label_info['service_method'] = get_nested_value(result, ['carrierSelection', 'serviceMethodName'])
 
-        logging.info(f"Carrier: {label_info['carrier']}")
-        logging.info(f"Tracking Number: {label_info['tracking_number']}")
-        logging.info(f"Service Method: {label_info['service_method']}")
+        # logging.info(f"Carrier: {label_info['carrier']}")
+        # logging.info(f"Tracking Number: {label_info['tracking_number']}")
+        # logging.info(f"Service Method: {label_info['service_method']}")
 
         documents = get_nested_value(result, ['carrierLabel', 'documents'])
 
         if documents and isinstance(documents, list) and len(documents) > 0:
             label_info['label_image'] = documents[0].get('labelImage', {}).get('imageContents')
-            logging.info(f"Label Image: {label_info['label_image']}")
+            # logging.info(f"Label Image: {label_info['label_image']}")
         else:
             logging.error("Documents array is empty or not in the expected format")
             label_info['label_image'] = None
@@ -171,27 +164,27 @@ def create_shipment_label(order_info):
         logging.error(f"An error occurred: {e}")
         return None
     
-if __name__ == "__main__":
-    # Create a sample order_info dictionary
-    order_info = {
-        'orderId': '7',  # Add this line
-        'firstName': 'John',
-        'lastName': 'Doe',
-        'addressLine1': '123 Main St',
-        'city': 'Anytown',
-        'stateCode': 'NY',
-        'zipCode': '12345'
-    }
+# if __name__ == "__main__":
+#     # Create a sample order_info dictionary
+#     order_info = {
+#         'orderId': '7',  # Add this line
+#         'firstName': 'John',
+#         'lastName': 'Doe',
+#         'addressLine1': '123 Main St',
+#         'city': 'Anytown',
+#         'stateCode': 'NY',
+#         'zipCode': '12345'
+#     }
 
-    try:
-        result = create_shipment_label(order_info)
+#     try:
+#         result = create_shipment_label(order_info)
         
-        if result:
-            print("Shipment label created successfully.")
-            print(f"Carrier: {result['carrier']}")
-            print(f"Tracking Number: {result['tracking_number']}")
-            print(f"Service Method: {result['service_method']}")
-        else:
-            print("Failed to create shipment label.")
-    except Exception as e:
-        print(f"An error occurred: {str(e)}")
+#         if result:
+#             print("Shipment label created successfully.")
+#             print(f"Carrier: {result['carrier']}")
+#             print(f"Tracking Number: {result['tracking_number']}")
+#             print(f"Service Method: {result['service_method']}")
+#         else:
+#             print("Failed to create shipment label.")
+#     except Exception as e:
+#         print(f"An error occurred: {str(e)}")
