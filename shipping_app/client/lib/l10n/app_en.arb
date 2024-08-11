@@ -1,0 +1,23 @@
+{
+  "login": "Login",
+  "loginUsername": "Username",
+  "password": "Password",
+  "generateShippingLabel": "Generate Shipping Label",
+  "bulkLabelPrint": "Bulk Label Print",
+  "reprintLabel": "Reprint Label",
+  "voidLabel": "Void Label",
+  "clearData": "Clear Data",
+  "orderId": "Order ID",
+  "printLabel": "Print Label",
+  "noLabelImageAvailable": "No label image available",
+  "pleaseEnterOrderId": "Please enter an Order ID",
+  "processingOrder": "Processing order...",
+  "labelGeneratedSuccessfully": "Label generated successfully",
+  "errorProcessingOrder": "Error processing order",
+  "noLabelAvailableToPrint": "No label available to print",
+  "printingLabel": "Printing label...",
+  "labelPrintedSuccessfully": "Label printed successfully",
+  "errorPrintingLabel": "Error printing label",
+  "inputOrderIds": "Input Order IDs",
+  "enterOrderIdsSeparatedByCommas": "Enter order IDs separated by commas"
+}

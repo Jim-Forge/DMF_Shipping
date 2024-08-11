@@ -1,6 +1,10 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'dart:typed_data';
 
 void main() {
   runApp(const MyApp());
@@ -11,15 +15,44 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Generate Shipping Label',
-      theme: ThemeData(
-        colorScheme:
-            ColorScheme.fromSeed(seedColor: Color.fromARGB(255, 181, 134, 33)),
-        useMaterial3: true,
+    return ChangeNotifierProvider(
+      create: (context) => LanguageProvider(),
+      child: Consumer<LanguageProvider>(
+        builder: (context, languageProvider, child) {
+          return MaterialApp(
+            title: 'Generate Shipping Label',
+            theme: ThemeData(
+              colorScheme: ColorScheme.fromSeed(
+                  seedColor: Color.fromARGB(255, 181, 134, 33)),
+              useMaterial3: true,
+            ),
+            localizationsDelegates: [
+              AppLocalizations.delegate,
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+            supportedLocales: [
+              Locale('en'),
+              Locale('es'),
+            ],
+            locale: languageProvider.currentLocale,
+            home: LoginScreen(),
+          );
+        },
       ),
-      home: LoginScreen(),
     );
+  }
+}
+
+class LanguageProvider extends ChangeNotifier {
+  Locale _currentLocale = Locale('en');
+
+  Locale get currentLocale => _currentLocale;
+
+  void changeLocale(String languageCode) {
+    _currentLocale = Locale(languageCode);
+    notifyListeners();
   }
 }
 
@@ -36,6 +69,20 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
       backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       title: Text(title),
       actions: [
+        DropdownButton<String>(
+          value:
+              Provider.of<LanguageProvider>(context).currentLocale.languageCode,
+          items: [
+            DropdownMenuItem(value: 'en', child: Text('English')),
+            DropdownMenuItem(value: 'es', child: Text('Español')),
+          ],
+          onChanged: (String? newValue) {
+            if (newValue != null) {
+              Provider.of<LanguageProvider>(context, listen: false)
+                  .changeLocale(newValue);
+            }
+          },
+        ),
         if (showLogout)
           IconButton(
             icon: Icon(Icons.logout),
@@ -62,10 +109,9 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  // String _statusMessage = '';
 
   void _login() {
-    // TODO: Implement actual login logic
+    // Login logic implementation
     if (_usernameController.text == 'admin' &&
         _passwordController.text == '123') {
       Navigator.pushReplacement(
@@ -83,7 +129,8 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBar(title: 'Davinci Shipping App'),
+      appBar:
+          CustomAppBar(title: AppLocalizations.of(context)?.login ?? 'Login'),
       body: Padding(
         padding: EdgeInsets.all(16.0),
         child: Column(
@@ -92,21 +139,22 @@ class _LoginScreenState extends State<LoginScreen> {
             TextField(
               controller: _usernameController,
               decoration: InputDecoration(
-                labelText: 'Username',
+                labelText:
+                    AppLocalizations.of(context)?.loginUsername ?? 'Username',
               ),
             ),
             SizedBox(height: 16),
             TextField(
               controller: _passwordController,
               decoration: InputDecoration(
-                labelText: 'Password',
+                labelText: AppLocalizations.of(context)?.password ?? 'Password',
               ),
               obscureText: true,
             ),
             SizedBox(height: 24),
             ElevatedButton(
               onPressed: _login,
-              child: Text('Login'),
+              child: Text(AppLocalizations.of(context)?.login ?? 'Login'),
               style: ElevatedButton.styleFrom(
                 minimumSize: Size(double.infinity, 50),
               ),
@@ -119,7 +167,7 @@ class _LoginScreenState extends State<LoginScreen> {
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+  const MyHomePage({Key? key, required this.title}) : super(key: key);
 
   final String title;
 
@@ -129,6 +177,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final TextEditingController _orderIdController = TextEditingController();
+
   String _statusMessage = '';
   String? _labelImageBase64;
   String? _labelImagePath;
@@ -206,7 +255,10 @@ class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: CustomAppBar(title: 'Generate Shipping Label', showLogout: true),
+      appBar: CustomAppBar(
+          title: AppLocalizations.of(context)?.generateShippingLabel ??
+              'Generate Shipping Label',
+          showLogout: true),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -215,8 +267,9 @@ class _MyHomePageState extends State<MyHomePage> {
             children: <Widget>[
               TextField(
                 controller: _orderIdController,
-                decoration: const InputDecoration(
-                  labelText: 'Order ID',
+                decoration: InputDecoration(
+                  labelText:
+                      AppLocalizations.of(context)?.orderId ?? 'Order ID',
                 ),
               ),
               const SizedBox(height: 20),
@@ -236,7 +289,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         });
                       }
                     },
-                    child: const Text('Generate Shipping Label'),
+                    child: Text(AppLocalizations.of(context)?.generateShippingLabel ?? 'Generate Shipping Label'),
                   ),
                   ElevatedButton(
                     onPressed: () {
@@ -246,7 +299,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             builder: (context) => BulkLabelPrintScreen()),
                       );
                     },
-                    child: const Text('Bulk Label Print'),
+                      child: Text(AppLocalizations.of(context)?.bulkLabelPrint ?? 'Bulk Label Print'),
                   ),
                   ElevatedButton(
                     onPressed: () {
@@ -256,7 +309,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             builder: (context) => ReprintLabelScreen()),
                       );
                     },
-                    child: const Text('Reprint Label'),
+                      child: Text(AppLocalizations.of(context)?.reprintLabel ?? 'Reprint Label'),
                   ),
                   ElevatedButton(
                     onPressed: () {
@@ -266,7 +319,7 @@ class _MyHomePageState extends State<MyHomePage> {
                             builder: (context) => VoidLabelScreen()),
                       );
                     },
-                    child: const Text('Void Label'),
+                      child: Text(AppLocalizations.of(context)?.voidLabel ?? 'Void Label'),
                   ),
                   ElevatedButton(
                     onPressed: () {
@@ -291,7 +344,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Image.memory(
-                        base64Decode(_labelImageBase64!),
+                        Uint8List.fromList(base64Decode(_labelImageBase64!)),
                         width: 300,
                         height: 300,
                         fit: BoxFit.contain,

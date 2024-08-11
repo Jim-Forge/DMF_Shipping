@@ -1,0 +1,23 @@
+{
+  "login": "Iniciar sesión",
+  "loginUsername": "Nombre de usuario",
+  "password": "Contraseña",
+  "generateShippingLabel": "Generar etiqueta de envío",
+  "bulkLabelPrint": "Impresión de etiquetas en lote",
+  "reprintLabel": "Reimprimir etiqueta",
+  "voidLabel": "Anular etiqueta",
+  "clearData": "Borrar datos",
+  "orderId": "ID de pedido",
+  "printLabel": "Imprimir etiqueta",
+  "noLabelImageAvailable": "No hay imagen de etiqueta disponible",
+  "pleaseEnterOrderId": "Por favor, ingrese un ID de pedido",
+  "processingOrder": "Procesando pedido...",
+  "labelGeneratedSuccessfully": "Etiqueta generada con éxito",
+  "errorProcessingOrder": "Error al procesar el pedido",
+  "noLabelAvailableToPrint": "No hay etiqueta disponible para imprimir",
+  "printingLabel": "Imprimiendo etiqueta...",
+  "labelPrintedSuccessfully": "Etiqueta impresa con éxito",
+  "errorPrintingLabel": "Error al imprimir la etiqueta",
+  "inputOrderIds": "Ingresar IDs de pedidos",
+  "enterOrderIdsSeparatedByCommas": "Ingrese los IDs de pedidos separados por comas"
+}
