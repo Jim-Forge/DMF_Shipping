@@ -38,7 +38,7 @@ def create_shipment_label(order_info):
             "currencyCode": "usd",
             "shipmentParameters": {
                 "orderedDateTime": "2024-07-15T17:00:00.0Z",
-                "shippedDateTime": None,
+                "shippedDateTime": "2024-07-15T17:00:00.0Z",
                 "desiredDeliveryDate": "2024-10-15T17:00:00.0Z",
                 "preferredCarrierDeliveryDateTime": "2024-10-15T17:00:00.0Z",
                 "includePackagesArray": True,
@@ -91,7 +91,7 @@ def create_shipment_label(order_info):
                     "addressType": "residential"
                 },
                 "packagingType": {
-                    "packagingMaterial": None,
+                    "packagingMaterial": "box", #required
                     "packagingSizeName": None,
                     "packagingTypeId": None,
                     "linearDimensions": {
