@@ -189,7 +189,7 @@ class _MyHomePageState extends State<MyHomePage> {
       _labelImagePath = null;
     });
 
-    final url = Uri.parse('http://localhost:5001/process_order');
+    final url = Uri.parse('https:dmf-shipping-app/process_order');
     final headers = {'Content-Type': 'application/json'};
     final body = json.encode({'order_id': orderId, 'display_image': true});
 
@@ -228,7 +228,7 @@ class _MyHomePageState extends State<MyHomePage> {
       _statusMessage = 'Printing label...';
     });
 
-    final url = Uri.parse('http://localhost:5001/print_label');
+    final url = Uri.parse('https://dmf-shipping-app/print_label');
     final headers = {'Content-Type': 'application/json'};
     final body = json.encode({'image_path': _labelImagePath});
 
