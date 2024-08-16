@@ -6,6 +6,7 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
+import 'dart:html' as html;
 
 void main() {
   runApp(const MyApp());
@@ -177,6 +178,19 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  @override
+  void initState() {
+    super.initState();
+    // Listen for messages from other windows (including the extension)
+    html.window.onMessage.listen((event) {
+      if (event.data['type'] == 'buttonClicked') {
+        // Trigger your desired action in the Flutter app
+        print("Message received from extension!");
+        // ... your app's logic here
+      }
+    });
+  }
+
   final TextEditingController _orderIdController = TextEditingController();
 
   String _statusMessage = '';
@@ -190,8 +204,8 @@ class _MyHomePageState extends State<MyHomePage> {
       _labelImagePath = null;
     });
 
-    final url =
-        Uri.parse('https://shipping-app-server-c48d90c52e59.herokuapp.com/process_order');
+    final url = Uri.parse(
+        'https://shipping-app-server-c48d90c52e59.herokuapp.com/process_order');
     final headers = {'Content-Type': 'application/json'};
     final body = json.encode({'order_id': orderId, 'display_image': true});
 
@@ -256,7 +270,8 @@ class _MyHomePageState extends State<MyHomePage> {
       _statusMessage = 'Printing label...';
     });
 
-    final url = Uri.parse('https://shipping-app-server-c48d90c52e59.herokuapp.com/print_label');
+    final url = Uri.parse(
+        'https://shipping-app-server-c48d90c52e59.herokuapp.com/print_label');
     final headers = {'Content-Type': 'application/json'};
     final body = json.encode({'image_path': _labelImagePath});
 
