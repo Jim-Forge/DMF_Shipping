@@ -178,7 +178,7 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  @override
+   @override
   void initState() {
     super.initState();
     // Listen for messages from other windows (including the extension)
@@ -190,7 +190,7 @@ class _MyHomePageState extends State<MyHomePage> {
       }
     });
   }
-
+  
   final TextEditingController _orderIdController = TextEditingController();
 
   String _statusMessage = '';
@@ -204,8 +204,8 @@ class _MyHomePageState extends State<MyHomePage> {
       _labelImagePath = null;
     });
 
-    final url = Uri.parse(
-        'https://shipping-app-server-c48d90c52e59.herokuapp.com/process_order');
+    final url =
+        Uri.parse('https://shipping-app-server-c48d90c52e59.herokuapp.com/process_order');
     final headers = {'Content-Type': 'application/json'};
     final body = json.encode({'order_id': orderId, 'display_image': true});
 
@@ -270,8 +270,7 @@ class _MyHomePageState extends State<MyHomePage> {
       _statusMessage = 'Printing label...';
     });
 
-    final url = Uri.parse(
-        'https://shipping-app-server-c48d90c52e59.herokuapp.com/print_label');
+    final url = Uri.parse('https://shipping-app-server-c48d90c52e59.herokuapp.com/print_label');
     final headers = {'Content-Type': 'application/json'};
     final body = json.encode({'image_path': _labelImagePath});
 

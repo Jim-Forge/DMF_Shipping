@@ -19,5 +19,6 @@
   "labelPrintedSuccessfully": "Label printed successfully",
   "errorPrintingLabel": "Error printing label",
   "inputOrderIds": "Input Order IDs",
+  "processOrder": "Process Order",
   "enterOrderIdsSeparatedByCommas": "Enter order IDs separated by commas"
 }

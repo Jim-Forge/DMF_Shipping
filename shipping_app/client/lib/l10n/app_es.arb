@@ -19,5 +19,6 @@
   "labelPrintedSuccessfully": "Etiqueta impresa con éxito",
   "errorPrintingLabel": "Error al imprimir la etiqueta",
   "inputOrderIds": "Ingresar IDs de pedidos",
+  "processOrder": "Procesar Orden",
   "enterOrderIdsSeparatedByCommas": "Ingrese los IDs de pedidos separados por comas"
 }
