@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
@@ -189,27 +190,54 @@ class _MyHomePageState extends State<MyHomePage> {
       _labelImagePath = null;
     });
 
-    final url = Uri.parse('https:dmf-shipping-app/process_order');
+    final url =
+        Uri.parse('https://shipping-app-server-c48d90c52e59.herokuapp.com/process_order');
     final headers = {'Content-Type': 'application/json'};
     final body = json.encode({'order_id': orderId, 'display_image': true});
 
     try {
       final response = await http.post(url, headers: headers, body: body);
+      print('Response status: ${response.statusCode}');
+      print('Response headers: ${response.headers}');
 
       if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-        setState(() {
-          _statusMessage = 'Label generated successfully';
-          _labelImageBase64 = responseData['label_image'];
-          _labelImagePath = responseData['label_image_path'];
-        });
+        final contentType = response.headers['content-type'];
+        if (contentType != null && contentType.contains('application/json')) {
+          try {
+            final responseData = json.decode(response.body);
+            print('Decoded JSON response: $responseData');
+            setState(() {
+              _statusMessage = 'Label generated successfully';
+              _labelImageBase64 = responseData['label_image'];
+              _labelImagePath = responseData['label_image_path'];
+            });
+          } catch (e) {
+            print('Error decoding JSON: $e');
+            setState(() {
+              _statusMessage = 'Error processing order: Invalid JSON response';
+            });
+          }
+        } else if (contentType != null && contentType.contains('text/html')) {
+          print('Received HTML response instead of JSON');
+          final decodedBody = utf8.decode(response.bodyBytes);
+          print('Decoded HTML response body: $decodedBody');
+          setState(() {
+            _statusMessage = 'Error: Received HTML response instead of JSON';
+          });
+        } else {
+          print('Unexpected content type: $contentType');
+          setState(() {
+            _statusMessage = 'Error: Unexpected response format';
+          });
+        }
       } else {
-        final errorInfo = json.decode(response.body);
+        print('Error response body: ${response.body}');
         setState(() {
-          _statusMessage = 'Error processing order: ${errorInfo['error']}';
+          _statusMessage = 'Error processing order: ${response.statusCode}';
         });
       }
     } catch (e) {
+      print('Network or other error: $e');
       setState(() {
         _statusMessage = 'Error processing order: ${e.toString()}';
       });
@@ -228,24 +256,55 @@ class _MyHomePageState extends State<MyHomePage> {
       _statusMessage = 'Printing label...';
     });
 
-    final url = Uri.parse('https://dmf-shipping-app/print_label');
+    final url = Uri.parse('https://shipping-app-server-c48d90c52e59.herokuapp.com/print_label');
     final headers = {'Content-Type': 'application/json'};
     final body = json.encode({'image_path': _labelImagePath});
 
     try {
       final response = await http.post(url, headers: headers, body: body);
+      print('Response status: ${response.statusCode}');
+      print('Response headers: ${response.headers}');
+      print('Raw response body: ${response.body}');
 
       if (response.statusCode == 200) {
-        setState(() {
-          _statusMessage = 'Label printed successfully';
-        });
+        try {
+          final responseData = json.decode(response.body);
+          print('Decoded JSON response: $responseData');
+          setState(() {
+            _statusMessage = 'Label printed successfully';
+          });
+        } catch (e) {
+          print('Error decoding JSON: $e');
+          print('Failed to decode response body: ${response.body}');
+          setState(() {
+            _statusMessage = 'Error printing label: Invalid JSON response';
+          });
+        }
       } else {
-        final errorInfo = json.decode(response.body);
-        setState(() {
-          _statusMessage = 'Error printing label: ${errorInfo['error']}';
-        });
+        if (response.headers['content-type']?.contains('text/html') == true) {
+          print('Received HTML response instead of JSON');
+          print('HTML response body: ${response.body}');
+          setState(() {
+            _statusMessage = 'Error printing label: Received HTML response';
+          });
+        } else {
+          try {
+            final errorInfo = json.decode(response.body);
+            print('Decoded error JSON: $errorInfo');
+            setState(() {
+              _statusMessage = 'Error printing label: ${errorInfo['error']}';
+            });
+          } catch (e) {
+            print('Error decoding error JSON: $e');
+            print('Failed to decode error response: ${response.body}');
+            setState(() {
+              _statusMessage = 'Error printing label: ${response.body}';
+            });
+          }
+        }
       }
     } catch (e) {
+      print('Network or other error: $e');
       setState(() {
         _statusMessage = 'Error printing label: ${e.toString()}';
       });
@@ -289,7 +348,9 @@ class _MyHomePageState extends State<MyHomePage> {
                         });
                       }
                     },
-                    child: Text(AppLocalizations.of(context)?.generateShippingLabel ?? 'Generate Shipping Label'),
+                    child: Text(
+                        AppLocalizations.of(context)?.generateShippingLabel ??
+                            'Generate Shipping Label'),
                   ),
                   ElevatedButton(
                     onPressed: () {
@@ -299,7 +360,8 @@ class _MyHomePageState extends State<MyHomePage> {
                             builder: (context) => BulkLabelPrintScreen()),
                       );
                     },
-                      child: Text(AppLocalizations.of(context)?.bulkLabelPrint ?? 'Bulk Label Print'),
+                    child: Text(AppLocalizations.of(context)?.bulkLabelPrint ??
+                        'Bulk Label Print'),
                   ),
                   ElevatedButton(
                     onPressed: () {
@@ -309,7 +371,8 @@ class _MyHomePageState extends State<MyHomePage> {
                             builder: (context) => ReprintLabelScreen()),
                       );
                     },
-                      child: Text(AppLocalizations.of(context)?.reprintLabel ?? 'Reprint Label'),
+                    child: Text(AppLocalizations.of(context)?.reprintLabel ??
+                        'Reprint Label'),
                   ),
                   ElevatedButton(
                     onPressed: () {
@@ -319,7 +382,8 @@ class _MyHomePageState extends State<MyHomePage> {
                             builder: (context) => VoidLabelScreen()),
                       );
                     },
-                      child: Text(AppLocalizations.of(context)?.voidLabel ?? 'Void Label'),
+                    child: Text(AppLocalizations.of(context)?.voidLabel ??
+                        'Void Label'),
                   ),
                   ElevatedButton(
                     onPressed: () {
