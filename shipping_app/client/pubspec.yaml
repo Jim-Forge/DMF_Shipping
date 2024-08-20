@@ -17,6 +17,7 @@ dependencies:
   printing: ^5.9.3
   pdf: ^3.8.4
   provider: ^6.0.0
+  shared_preferences: ^2.3.2
 
 dev_dependencies:
   flutter_test:

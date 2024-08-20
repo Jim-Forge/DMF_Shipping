@@ -20,5 +20,6 @@
   "errorPrintingLabel": "Error al imprimir la etiqueta",
   "inputOrderIds": "Ingresar IDs de pedidos",
   "processOrder": "Procesar Orden",
-  "enterOrderIdsSeparatedByCommas": "Ingrese los IDs de pedidos separados por comas"
+  "enterOrderIdsSeparatedByCommas": "Ingrese los IDs de pedidos separados por comas",
+  "configuration": "Configuración"
 }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'dart:typed_data';
@@ -16,7 +17,8 @@ void main() {
 }
 
 void checkWindowName() {
-  js.context.callMethod('eval', ['console.log("Window name: " + window.name);']);
+  js.context
+      .callMethod('eval', ['console.log("Window name: " + window.name);']);
 }
 
 class MyApp extends StatelessWidget {
@@ -185,19 +187,41 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-@override
-void initState() {
-  super.initState();
-  html.window.onMessage.listen((event) {
-    if (event.data is Map<String, dynamic> &&
-        event.data['type'] == 'triggerShippingAppButtonClick' &&
-        event.data['source'] == 'extension') {
-      print("Message received from extension to trigger button click");
-      // Trigger the Generate Shipping Label button programmatically
-      processOrder(_orderIdController.text);
-    }
-  });
-}
+  @override
+  void setupMessageListener() {
+    html.window.onMessage.listen((event) {
+      // Filter out messages from React Devtools
+      if (event.data['source'] == 'react-devtools-content-script') {
+        return; // Ignore this message
+      }
+
+      // Check if the message is an object and has the necessary properties
+      if (event.data is Map<String, dynamic> &&
+          event.data.containsKey('type') &&
+          event.data.containsKey('source') &&
+          event.data.containsKey('id')) {
+        final messageType = event.data['type'] as String;
+        final messageSource = event.data['source'] as String;
+        final messageId = event.data['id'] as String;
+
+        // Handle messages based on their type and source
+        switch (messageType) {
+          case 'triggerShippingAppButtonClick': // Example message type
+            if (messageSource == 'extension') {
+              // Handle button click triggered by the extension
+              // ... your logic to process the order or perform other actions
+              // You might also want to send a confirmation message back to the extension
+            }
+            break;
+          // ... other message types you expect to handle
+          default:
+            print('Received unhandled message type: $messageType');
+        }
+      } else {
+        print('Received invalid message format: ${event.data}');
+      }
+    });
+  }
 
   final TextEditingController _orderIdController = TextEditingController();
 
@@ -361,6 +385,7 @@ void initState() {
                 alignment: WrapAlignment.center,
                 children: [
                   ElevatedButton(
+                    key: const ValueKey('generateShippingLabelButton'),
                     onPressed: () {
                       final orderId = _orderIdController.text;
                       if (orderId.isNotEmpty) {
@@ -418,6 +443,25 @@ void initState() {
                       });
                     },
                     child: const Text('Clear Data'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ConfigurationScreen(
+                            initialDisplayLabelImage:
+                                true, // Set an initial value
+                            onDisplayLabelImageChanged: (value) {
+                              // Handle the change here, e.g., update a global state
+                              print('Display label image changed to: $value');
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                    child: Text(AppLocalizations.of(context)?.configuration ??
+                        'Configuration'),
                   ),
                 ],
               ),
@@ -535,8 +579,40 @@ class ReprintLabelScreen extends StatelessWidget {
   }
 }
 
-class VoidLabelScreen extends StatelessWidget {
-  final TextEditingController _orderIdController = TextEditingController();
+class VoidLabelScreen extends StatefulWidget {
+  @override
+  _VoidLabelScreenState createState() => _VoidLabelScreenState();
+}
+
+class _VoidLabelScreenState extends State<VoidLabelScreen> {
+  final TextEditingController _shipiumLabelIdController =
+      TextEditingController();
+  final TextEditingController _carrierTrackingIdController =
+      TextEditingController();
+  String _statusMessage = '';
+
+  Future<void> _voidLabel() async {
+    final url = Uri.parse(
+        'https://shipping-app-server-c48d90c52e59.herokuapp.com/void_label');
+    final response = await http.post(
+      url,
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({
+        'shipium_label_id': _shipiumLabelIdController.text,
+        'carrier_tracking_id': _carrierTrackingIdController.text,
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      setState(() {
+        _statusMessage = 'Label voided successfully';
+      });
+    } else {
+      setState(() {
+        _statusMessage = 'Error voiding label: ${response.body}';
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -548,17 +624,94 @@ class VoidLabelScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             TextField(
-              controller: _orderIdController,
+              controller: _shipiumLabelIdController,
               decoration: InputDecoration(
-                labelText: 'Input Order ID',
+                labelText: 'Shipium Label ID',
+              ),
+            ),
+            SizedBox(height: 20),
+            TextField(
+              controller: _carrierTrackingIdController,
+              decoration: InputDecoration(
+                labelText: 'Carrier Tracking ID',
               ),
             ),
             SizedBox(height: 20),
             ElevatedButton(
-              onPressed: () {
-                // TODO: Implement void label functionality
-              },
+              onPressed: _voidLabel,
               child: Text('Void Label'),
+            ),
+            SizedBox(height: 20),
+            Text(_statusMessage),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ConfigurationScreen extends StatefulWidget {
+  final bool initialDisplayLabelImage;
+  final Function(bool) onDisplayLabelImageChanged;
+
+  const ConfigurationScreen({
+    Key? key,
+    required this.initialDisplayLabelImage,
+    required this.onDisplayLabelImageChanged,
+  }) : super(key: key);
+
+  @override
+  _ConfigurationScreenState createState() => _ConfigurationScreenState();
+}
+
+class _ConfigurationScreenState extends State<ConfigurationScreen> {
+  late bool _displayLabelImage;
+
+  @override
+  void initState() {
+    super.initState();
+    _displayLabelImage = widget.initialDisplayLabelImage;
+    _loadDisplayLabelImageSetting();
+  }
+
+  Future<void> _loadDisplayLabelImageSetting() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _displayLabelImage =
+          prefs.getBool('displayLabelImage') ?? _displayLabelImage;
+    });
+  }
+
+  Future<void> _saveDisplayLabelImageSetting(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('displayLabelImage', value);
+    widget.onDisplayLabelImageChanged(value);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: CustomAppBar(title: 'Configuration', showLogout: true),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Display Label Image in UI'),
+            DropdownButton<bool>(
+              value: _displayLabelImage,
+              onChanged: (bool? newValue) {
+                if (newValue != null) {
+                  setState(() {
+                    _displayLabelImage = newValue;
+                  });
+                  _saveDisplayLabelImageSetting(newValue);
+                }
+              },
+              items: [
+                DropdownMenuItem(value: true, child: Text('Yes')),
+                DropdownMenuItem(value: false, child: Text('No')),
+              ],
             ),
           ],
         ),
