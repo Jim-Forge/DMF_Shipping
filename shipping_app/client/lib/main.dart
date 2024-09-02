@@ -677,8 +677,7 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> {
   Future<void> _loadDisplayLabelImageSetting() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _displayLabelImage =
-          prefs.getBool('displayLabelImage') ?? _displayLabelImage;
+      _displayLabelImage = prefs.getBool('displayLabelImage') ?? _displayLabelImage;
     });
   }
 
