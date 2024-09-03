@@ -9,6 +9,8 @@ import 'package:http/http.dart' as http;
 import 'dart:typed_data';
 import 'dart:html' as html;
 import 'dart:js' as js;
+import 'dart:developer' as developer;
+import 'package:printing/printing.dart';
 
 void main() {
   js.context.callMethod('eval', ['window.name = "ShippingApp";']);
@@ -229,17 +231,20 @@ class _MyHomePageState extends State<MyHomePage> {
   String? _labelImageBase64;
   String? _labelImagePath;
 
+  bool _hasTriedToGenerateLabel = false;
+
   Future<void> processOrder(String orderId) async {
     setState(() {
       _statusMessage = 'Processing order...';
       _labelImageBase64 = null;
       _labelImagePath = null;
+      _hasTriedToGenerateLabel = false;
     });
 
     final url = Uri.parse(
-        'https://shipping-app-server-c48d90c52e59.herokuapp.com/process_order');
+        'https://shipping-app-server-c48d90c52e59.herokuapp.com/create_shipment_label');
     final headers = {'Content-Type': 'application/json'};
-    final body = json.encode({'order_id': orderId, 'display_image': true});
+    final body = json.encode({'order_id': orderId});
 
     try {
       final response = await http.post(url, headers: headers, body: body);
@@ -247,45 +252,28 @@ class _MyHomePageState extends State<MyHomePage> {
       print('Response headers: ${response.headers}');
 
       if (response.statusCode == 200) {
-        final contentType = response.headers['content-type'];
-        if (contentType != null && contentType.contains('application/json')) {
-          try {
-            final responseData = json.decode(response.body);
-            print('Decoded JSON response: $responseData');
-            setState(() {
-              _statusMessage = 'Label generated successfully';
-              _labelImageBase64 = responseData['label_image'];
-              _labelImagePath = responseData['label_image_path'];
-            });
-          } catch (e) {
-            print('Error decoding JSON: $e');
-            setState(() {
-              _statusMessage = 'Error processing order: Invalid JSON response';
-            });
-          }
-        } else if (contentType != null && contentType.contains('text/html')) {
-          print('Received HTML response instead of JSON');
-          final decodedBody = utf8.decode(response.bodyBytes);
-          print('Decoded HTML response body: $decodedBody');
-          setState(() {
-            _statusMessage = 'Error: Received HTML response instead of JSON';
-          });
-        } else {
-          print('Unexpected content type: $contentType');
-          setState(() {
-            _statusMessage = 'Error: Unexpected response format';
-          });
-        }
+        final responseData = json.decode(response.body);
+        print('Decoded JSON response: $responseData');
+        setState(() {
+          _statusMessage = 'Label generated successfully';
+          _labelImageBase64 = responseData['label_info']['label_image'];
+          _labelImagePath = responseData['label_image_path'];
+          _hasTriedToGenerateLabel = true;
+          print('Label Image Base64 in setState: $_labelImageBase64');
+          print('Label Image Path in setState: $_labelImagePath');
+        });
       } else {
         print('Error response body: ${response.body}');
         setState(() {
           _statusMessage = 'Error processing order: ${response.statusCode}';
+          _hasTriedToGenerateLabel = true;
         });
       }
     } catch (e) {
       print('Network or other error: $e');
       setState(() {
         _statusMessage = 'Error processing order: ${e.toString()}';
+        _hasTriedToGenerateLabel = true;
       });
     }
   }
@@ -468,33 +456,51 @@ class _MyHomePageState extends State<MyHomePage> {
               const SizedBox(height: 20),
               Text(_statusMessage),
               const SizedBox(height: 20),
-              if (_labelImageBase64 != null)
-                if (_labelImageBase64!.isNotEmpty)
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Image.memory(
-                        Uint8List.fromList(base64Decode(_labelImageBase64!)),
-                        width: 300,
-                        height: 300,
-                        fit: BoxFit.contain,
-                      ),
-                      const SizedBox(width: 20),
-                      Column(
-                        children: [
-                          ElevatedButton(
-                            onPressed: printLabel,
-                            child: const Text('Print Label'),
-                          ),
-                          const SizedBox(height: 10),
-                          Text('Order ID: ${_orderIdController.text}'),
-                        ],
-                      ),
-                    ],
-                  )
-                else
-                  const Text('No label image available')
+              Builder(
+                builder: (context) {
+                  print(
+                      '_labelImageBase64: ${_labelImageBase64?.substring(0, 30)}...'); // Log the first 30 characters
+                  print('Render');
+                  if (_labelImageBase64 != null &&
+                      _labelImageBase64!.isNotEmpty) {
+                    developer.log('Attempting to render label image');
+                    try {
+                      final decodedBytes = base64Decode(_labelImageBase64!);
+                      if (decodedBytes.isNotEmpty) {
+                        return Column(
+                          children: [
+                            Image.memory(
+                              Uint8List.fromList(decodedBytes),
+                              width: 300,
+                              height: 300,
+                              fit: BoxFit.contain,
+                            ),
+                            const SizedBox(height: 10),
+                            Text('Order ID: ${_orderIdController.text}'),
+                            const SizedBox(height: 10),
+                            ElevatedButton(
+                              onPressed: printLabel,
+                              child: const Text('Print Label'),
+                            ),
+                          ],
+                        );
+                      } else {
+                        developer.log('Decoded bytes are empty');
+                        return const Text(
+                            'Error rendering label image: Decoded bytes are empty');
+                      }
+                    } catch (e) {
+                      developer.log('Error decoding base64 image: $e');
+                      return const Text('Error rendering label image');
+                    }
+                  } else if (_hasTriedToGenerateLabel) {
+                    developer.log('No label image available');
+                    return const Text('No label image available');
+                  } else {
+                    return Container(); // Return an empty container if no status message is set
+                  }
+                },
+              )
             ],
           ),
         ),
@@ -677,7 +683,8 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> {
   Future<void> _loadDisplayLabelImageSetting() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      _displayLabelImage = prefs.getBool('displayLabelImage') ?? _displayLabelImage;
+      _displayLabelImage =
+          prefs.getBool('displayLabelImage') ?? _displayLabelImage;
     });
   }
 
