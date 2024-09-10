@@ -10,7 +10,12 @@ import 'dart:typed_data';
 import 'dart:html' as html;
 import 'dart:js' as js;
 import 'dart:developer' as developer;
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show File, Platform;
 
 void main() {
   js.context.callMethod('eval', ['window.name = "ShippingApp";']);
@@ -21,6 +26,37 @@ void main() {
 void checkWindowName() {
   js.context
       .callMethod('eval', ['console.log("Window name: " + window.name);']);
+}
+
+void sendPrintJob(String zplData) {
+  html.window.postMessage({'type': 'ZEBRA_PRINT', 'data': zplData}, '*');
+}
+
+class ZebraPrinter {
+  static const platform = MethodChannel('com.example.zebra_printer');
+
+  Future<void> printZpl(String zplCode) async {
+    try {
+      final String scriptPath = await getScriptPath('print_to_zebra.py');
+      final String result = await platform.invokeMethod('printZpl', {
+        'zplCode': zplCode,
+        'scriptPath': scriptPath,
+      });
+      print(result);
+    } on PlatformException catch (e) {
+      print("Failed to print ZPL: '${e.message}'.");
+    }
+  }
+
+  Future<String> getScriptPath(String scriptName) async {
+    final directory = await getApplicationDocumentsDirectory();
+    final scriptFile = File('${directory.path}/$scriptName');
+    if (!scriptFile.existsSync()) {
+      final byteData = await rootBundle.load('assets/scripts/$scriptName');
+      await scriptFile.writeAsBytes(byteData.buffer.asUint8List());
+    }
+    return scriptFile.path;
+  }
 }
 
 class MyApp extends StatelessWidget {
@@ -233,53 +269,77 @@ class _MyHomePageState extends State<MyHomePage> {
 
   bool _hasTriedToGenerateLabel = false;
 
-  Future<void> processOrder(String orderId) async {
-    setState(() {
-      _statusMessage = 'Processing order...';
-      _labelImageBase64 = null;
-      _labelImagePath = null;
-      _hasTriedToGenerateLabel = false;
-    });
-
-    final url = Uri.parse(
-        'https://shipping-app-server-c48d90c52e59.herokuapp.com/create_shipment_label');
-    final headers = {'Content-Type': 'application/json'};
-    final body = json.encode({'order_id': orderId});
-
+  Future<void> printToZebraPrinter(String zplCode) async {
+    final zebraPrinter = ZebraPrinter();
     try {
-      final response = await http.post(url, headers: headers, body: body);
-      print('Response status: ${response.statusCode}');
-      print('Response headers: ${response.headers}');
-
-      if (response.statusCode == 200) {
-        final responseData = json.decode(response.body);
-        print('Decoded JSON response: $responseData');
-        setState(() {
-          _statusMessage = 'Label generated successfully';
-          _labelImageBase64 = responseData['label_info']['label_image'];
-          _labelImagePath = responseData['label_image_path'];
-          _hasTriedToGenerateLabel = true;
-          print('Label Image Base64 in setState: $_labelImageBase64');
-          print('Label Image Path in setState: $_labelImagePath');
-        });
-      } else {
-        print('Error response body: ${response.body}');
-        setState(() {
-          _statusMessage = 'Error processing order: ${response.statusCode}';
-          _hasTriedToGenerateLabel = true;
-        });
-      }
-    } catch (e) {
-      print('Network or other error: $e');
+      await zebraPrinter.printZpl(zplCode);
       setState(() {
-        _statusMessage = 'Error processing order: ${e.toString()}';
-        _hasTriedToGenerateLabel = true;
+        _statusMessage = 'Label sent to Zebra printer successfully';
+      });
+    } catch (e) {
+      setState(() {
+        _statusMessage = 'Error sending label to Zebra printer: $e';
       });
     }
   }
 
+Future<void> processOrder(String orderId) async {
+  setState(() {
+    _statusMessage = 'Processing order...';
+    _labelImageBase64 = null;
+    _labelImagePath = null;
+    _hasTriedToGenerateLabel = false;
+  });
+
+  final prefs = await SharedPreferences.getInstance();
+  final selectedPrinterName = prefs.getString('selectedPrinter');
+
+  try {
+    final response = await http.post(
+      Uri.parse('https://shipping-app-server-c48d90c52e59.herokuapp.com/create_shipment_label'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(<String, String>{
+        'order_id': orderId,
+        'printer_id': selectedPrinterName ?? '',
+      }),
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response headers: ${response.headers}');
+
+    if (response.statusCode == 200) {
+      final responseData = json.decode(response.body);
+      print('Decoded JSON response: $responseData');
+      setState(() {
+        _statusMessage = 'Label generated successfully';
+        _labelImageBase64 = responseData['label_info']['label_image'];
+        print('Label Image Base64 set: ${_labelImageBase64?.substring(0, 30)}...');
+        _labelImagePath = responseData['label_image_path'];
+        _hasTriedToGenerateLabel = true;
+        print('Label Image Base64 in setState: $_labelImageBase64');
+        print('Label Image Path in setState: $_labelImagePath');
+      });
+      await printLabel();
+    } else {
+      print('Error response body: ${response.body}');
+      setState(() {
+        _statusMessage = 'Error processing order: ${response.statusCode}';
+        _hasTriedToGenerateLabel = true;
+      });
+    }
+  } catch (e) {
+    print('Network or other error: $e');
+    setState(() {
+      _statusMessage = 'Error processing order: ${e.toString()}';
+      _hasTriedToGenerateLabel = true;
+    });
+  }
+}
+
   Future<void> printLabel() async {
-    if (_labelImagePath == null) {
+    if (_labelImageBase64 == null) {
       setState(() {
         _statusMessage = 'No label available to print';
       });
@@ -290,56 +350,48 @@ class _MyHomePageState extends State<MyHomePage> {
       _statusMessage = 'Printing label...';
     });
 
-    final url = Uri.parse(
-        'https://shipping-app-server-c48d90c52e59.herokuapp.com/print_label');
-    final headers = {'Content-Type': 'application/json'};
-    final body = json.encode({'image_path': _labelImagePath});
-
     try {
-      final response = await http.post(url, headers: headers, body: body);
-      print('Response status: ${response.statusCode}');
-      print('Response headers: ${response.headers}');
-      print('Raw response body: ${response.body}');
+      final decodedBytes = base64Decode(_labelImageBase64!);
+      final pdfDocument = pw.Document();
+      final image = pw.MemoryImage(decodedBytes);
 
-      if (response.statusCode == 200) {
-        try {
-          final responseData = json.decode(response.body);
-          print('Decoded JSON response: $responseData');
-          setState(() {
-            _statusMessage = 'Label printed successfully';
-          });
-        } catch (e) {
-          print('Error decoding JSON: $e');
-          print('Failed to decode response body: ${response.body}');
-          setState(() {
-            _statusMessage = 'Error printing label: Invalid JSON response';
-          });
-        }
+      pdfDocument.addPage(
+        pw.Page(
+          build: (pw.Context context) {
+            return pw.Center(
+              child: pw.Image(image),
+            );
+          },
+        ),
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      final selectedPrinterName = prefs.getString('selectedPrinter');
+
+      if (selectedPrinterName != null) {
+        final printers = await Printing.listPrinters();
+        final selectedPrinter = printers.firstWhere(
+          (printer) => printer.name == selectedPrinterName,
+          orElse: () => printers.isNotEmpty
+              ? printers.first
+              : throw Exception('No printers available'),
+        );
+
+        await Printing.directPrintPdf(
+          printer: selectedPrinter,
+          onLayout: (PdfPageFormat format) async => pdfDocument.save(),
+        );
       } else {
-        if (response.headers['content-type']?.contains('text/html') == true) {
-          print('Received HTML response instead of JSON');
-          print('HTML response body: ${response.body}');
-          setState(() {
-            _statusMessage = 'Error printing label: Received HTML response';
-          });
-        } else {
-          try {
-            final errorInfo = json.decode(response.body);
-            print('Decoded error JSON: $errorInfo');
-            setState(() {
-              _statusMessage = 'Error printing label: ${errorInfo['error']}';
-            });
-          } catch (e) {
-            print('Error decoding error JSON: $e');
-            print('Failed to decode error response: ${response.body}');
-            setState(() {
-              _statusMessage = 'Error printing label: ${response.body}';
-            });
-          }
-        }
+        await Printing.layoutPdf(
+          onLayout: (PdfPageFormat format) async => pdfDocument.save(),
+        );
       }
+
+      setState(() {
+        _statusMessage = 'Label printed successfully';
+      });
     } catch (e) {
-      print('Network or other error: $e');
+      print('Error printing label: $e');
       setState(() {
         _statusMessage = 'Error printing label: ${e.toString()}';
       });
@@ -438,8 +490,7 @@ class _MyHomePageState extends State<MyHomePage> {
                         context,
                         MaterialPageRoute(
                           builder: (context) => ConfigurationScreen(
-                            initialDisplayLabelImage:
-                                true, // Set an initial value
+                            initialDisplayLabelImage: true,
                             onDisplayLabelImageChanged: (value) {
                               // Handle the change here, e.g., update a global state
                               print('Display label image changed to: $value');
@@ -456,51 +507,70 @@ class _MyHomePageState extends State<MyHomePage> {
               const SizedBox(height: 20),
               Text(_statusMessage),
               const SizedBox(height: 20),
-              Builder(
-                builder: (context) {
-                  print(
-                      '_labelImageBase64: ${_labelImageBase64?.substring(0, 30)}...'); // Log the first 30 characters
-                  print('Render');
-                  if (_labelImageBase64 != null &&
-                      _labelImageBase64!.isNotEmpty) {
-                    developer.log('Attempting to render label image');
-                    try {
-                      final decodedBytes = base64Decode(_labelImageBase64!);
-                      if (decodedBytes.isNotEmpty) {
-                        return Column(
-                          children: [
-                            Image.memory(
-                              Uint8List.fromList(decodedBytes),
-                              width: 300,
-                              height: 300,
-                              fit: BoxFit.contain,
-                            ),
-                            const SizedBox(height: 10),
-                            Text('Order ID: ${_orderIdController.text}'),
-                            const SizedBox(height: 10),
-                            ElevatedButton(
-                              onPressed: printLabel,
-                              child: const Text('Print Label'),
-                            ),
-                          ],
-                        );
-                      } else {
-                        developer.log('Decoded bytes are empty');
-                        return const Text(
-                            'Error rendering label image: Decoded bytes are empty');
-                      }
-                    } catch (e) {
-                      developer.log('Error decoding base64 image: $e');
-                      return const Text('Error rendering label image');
-                    }
-                  } else if (_hasTriedToGenerateLabel) {
-                    developer.log('No label image available');
-                    return const Text('No label image available');
-                  } else {
-                    return Container(); // Return an empty container if no status message is set
-                  }
-                },
-              )
+              // Builder(
+              //   builder: (context) {
+              //     print(
+              //         'Building image widget. _labelImageBase64 length: ${_labelImageBase64?.length}');
+              //     print(
+              //         '_labelImageBase64: ${_labelImageBase64?.substring(0, 30)}...'); // Log the first 30 characters
+              //     print('Render');
+              //     if (_labelImageBase64 != null &&
+              //         _labelImageBase64!.isNotEmpty) {
+              //       developer.log('Attempting to render label image');
+              //       try {
+              //         final decodedBytes = base64Decode(_labelImageBase64!);
+              //         print('Decoded bytes length: ${decodedBytes.length}');
+              //         if (decodedBytes.isNotEmpty) {
+              //           return Column(
+              //             children: [
+              //               Image.memory(
+              //                 Uint8List.fromList(decodedBytes),
+              //                 width: 300,
+              //                 height: 300,
+              //                 fit: BoxFit.contain,
+              //                 errorBuilder: (context, error, stackTrace) {
+              //                   print(
+              //                       'Error creating Image.memory widget: $error');
+              //                   return Column(
+              //                     children: [
+              //                       Icon(Icons.error,
+              //                           color: Colors.red, size: 50),
+              //                       SizedBox(height: 10),
+              //                       Text(
+              //                         'Error displaying image: Invalid image format',
+              //                         style: TextStyle(color: Colors.red),
+              //                         textAlign: TextAlign.center,
+              //                       ),
+              //                     ],
+              //                   );
+              //                 },
+              //               ),
+              //               const SizedBox(height: 10),
+              //               Text('Order ID: ${_orderIdController.text}'),
+              //               const SizedBox(height: 10),
+              //               ElevatedButton(
+              //                 onPressed: printLabel,
+              //                 child: const Text('Print Label'),
+              //               ),
+              //             ],
+              //           );
+              //         } else {
+              //           developer.log('Decoded bytes are empty');
+              //           return const Text(
+              //               'Error rendering label image: Decoded bytes are empty');
+              //         }
+              //       } catch (e) {
+              //         developer.log('Error decoding base64 image: $e');
+              //         return const Text('Error rendering label image');
+              //       }
+              //     } else if (_hasTriedToGenerateLabel) {
+              //       developer.log('No label image available');
+              //       return const Text('No label image available');
+              //     } else {
+              //       return Container(); // Return an empty container if no status message is set
+              //     }
+              //   },
+              // )
             ],
           ),
         ),
@@ -671,27 +741,100 @@ class ConfigurationScreen extends StatefulWidget {
 }
 
 class _ConfigurationScreenState extends State<ConfigurationScreen> {
-  late bool _displayLabelImage;
+  bool _displayLabelImage = false;
+  List<Printer> _availablePrinters = [];
+  Printer? _selectedPrinter;
+  late SharedPreferences _prefs;
 
   @override
   void initState() {
     super.initState();
     _displayLabelImage = widget.initialDisplayLabelImage;
-    _loadDisplayLabelImageSetting();
+    _fetchAvailablePrinters().then((_) => _loadPreferences());
   }
 
-  Future<void> _loadDisplayLabelImageSetting() async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<void> _loadPreferences() async {
+    _prefs = await SharedPreferences.getInstance();
     setState(() {
       _displayLabelImage =
-          prefs.getBool('displayLabelImage') ?? _displayLabelImage;
+          _prefs.getBool('displayLabelImage') ?? _displayLabelImage;
+      String? selectedPrinterName = _prefs.getString('selectedPrinter');
+      if (selectedPrinterName != null) {
+        _selectedPrinter = _availablePrinters.firstWhere(
+          (printer) => printer.name == selectedPrinterName,
+          orElse: () => Printer(name: selectedPrinterName, url: ''),
+        );
+      }
     });
   }
 
-  Future<void> _saveDisplayLabelImageSetting(bool value) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('displayLabelImage', value);
-    widget.onDisplayLabelImageChanged(value);
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _saveConfiguration();
+  }
+
+  Future<void> _saveConfiguration() async {
+    await _prefs.setBool('displayLabelImage', _displayLabelImage);
+    if (_selectedPrinter != null) {
+      await _prefs.setString('selectedPrinter', _selectedPrinter!.name);
+    }
+  }
+
+  Future<void> _fetchAvailablePrinters() async {
+    if (_availablePrinters.isNotEmpty) {
+      return; // Don't fetch if we already have printers
+    }
+
+    if (kIsWeb) {
+      await _fetchPrintersFromServer();
+    } else {
+      try {
+        final printers = await Printing.listPrinters();
+        setState(() {
+          _availablePrinters = printers;
+          if (_selectedPrinter == null && _availablePrinters.isNotEmpty) {
+            _selectedPrinter = _availablePrinters.first;
+          }
+        });
+      } catch (e) {
+        print('Error fetching printers: $e');
+      }
+    }
+  }
+
+  Future<void> _fetchPrintersFromServer() async {
+    try {
+      final response = await http.get(Uri.parse(
+          'https://shipping-app-server-c48d90c52e59.herokuapp.com/get_printers'));
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        setState(() {
+          _availablePrinters = data
+              .map((printer) {
+                if (printer is Map<String, dynamic> &&
+                    printer.containsKey('name')) {
+                  return Printer(name: printer['name'], url: '');
+                } else {
+                  print('Invalid printer data: $printer');
+                  return null;
+                }
+              })
+              .whereType<Printer>()
+              .toList();
+
+          if (_availablePrinters.isNotEmpty) {
+            _selectedPrinter = _availablePrinters.first;
+          }
+        });
+        print(
+            'Fetched printers: ${_availablePrinters.map((p) => p.name).toList()}');
+      } else {
+        print('Error fetching printers from server: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error fetching printers from server: $e');
+    }
   }
 
   @override
@@ -703,25 +846,50 @@ class _ConfigurationScreenState extends State<ConfigurationScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Display Label Image in UI'),
-            DropdownButton<bool>(
+            SwitchListTile(
+              title: Text('Display Label Image'),
               value: _displayLabelImage,
-              onChanged: (bool? newValue) {
-                if (newValue != null) {
-                  setState(() {
-                    _displayLabelImage = newValue;
-                  });
-                  _saveDisplayLabelImageSetting(newValue);
-                }
+              onChanged: (bool value) {
+                setState(() {
+                  _displayLabelImage = value;
+                });
+                _saveConfiguration(); // Save when changed
+                widget.onDisplayLabelImageChanged(value); // Notify parent
               },
-              items: [
-                DropdownMenuItem(value: true, child: Text('Yes')),
-                DropdownMenuItem(value: false, child: Text('No')),
-              ],
+            ),
+            SizedBox(height: 20),
+            Text('Select Printer:'),
+            DropdownButton<Printer>(
+              value: _selectedPrinter,
+              isExpanded: true,
+              items: _availablePrinters.map((Printer printer) {
+                return DropdownMenuItem<Printer>(
+                  value: printer,
+                  child: Text(printer.name),
+                );
+              }).toList(),
+              onChanged: (Printer? newValue) {
+                setState(() {
+                  _selectedPrinter = newValue;
+                });
+                _saveConfiguration(); // Save when changed
+              },
             ),
           ],
         ),
       ),
+    );
+  }
+
+  void _handlePrinterFetchError() {
+    setState(() {
+      _availablePrinters = [Printer(name: 'Default Printer', url: '')];
+      _selectedPrinter = _availablePrinters.first;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+          content:
+              Text('Printer selection is limited. Using default printer.')),
     );
   }
 }

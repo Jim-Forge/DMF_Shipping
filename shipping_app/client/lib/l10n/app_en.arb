@@ -21,5 +21,7 @@
   "inputOrderIds": "Input Order IDs",
   "processOrder": "Process Order",
   "enterOrderIdsSeparatedByCommas": "Enter order IDs separated by commas",
-  "configuration": "Configuration"
+  "configuration": "Configuration",
+  "selectPrinter": "Select Printer",
+  "displayLabelImage": "Display Label Image"
 }

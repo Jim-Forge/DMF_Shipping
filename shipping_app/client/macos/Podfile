@@ -31,6 +31,8 @@ target 'Runner' do
   use_modular_headers!
 
   flutter_install_all_macos_pods File.dirname(File.realpath(__FILE__))
+  pod 'ZebraPrinterPlugin', :path => 'Flutter/ephemeral/.symlinks/plugins/zebra_printer_plugin/macos'
+
   target 'RunnerTests' do
     inherit! :search_paths
   end

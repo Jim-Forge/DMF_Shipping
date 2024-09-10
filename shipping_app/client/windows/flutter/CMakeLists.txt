@@ -107,3 +107,17 @@ add_custom_target(flutter_assemble DEPENDS
   ${CPP_WRAPPER_SOURCES_PLUGIN}
   ${CPP_WRAPPER_SOURCES_APP}
 )
+
+include_directories(
+  ${FLUTTER_ROOT}/bin/cache/artifacts/engine/windows
+  ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+include_directories(
+  ${FLUTTER_EPHEMERAL_DIR}
+  ${FLUTTER_EPHEMERAL_DIR}/cpp_client_wrapper/include
+  ${CMAKE_CURRENT_SOURCE_DIR}
+)
+
+find_package(WindowsSdk REQUIRED)
+include_directories(${WINDOWSSDK_INCLUDE_DIRS})

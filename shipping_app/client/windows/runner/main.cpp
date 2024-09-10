@@ -32,6 +32,28 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
   }
   window.SetQuitOnClose(true);
 
+  // Add method channel for ZPL printing
+  flutter::MethodChannel<flutter::EncodableValue> channel(
+      window.GetView()->GetEngine()->dart_executor(), "com.example.zebra_printer",
+      &flutter::StandardMethodCodec::GetInstance());
+
+  channel.SetMethodCallHandler(
+      [](const flutter::MethodCall<flutter::EncodableValue> &call,
+         std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
+        if (call.method_name() == "printZpl") {
+          auto args = std::get<flutter::EncodableMap>(*call.arguments());
+          auto zplCode = std::get<std::string>(args.at(flutter::EncodableValue("zplCode")));
+          auto scriptPath = std::get<std::string>(args.at(flutter::EncodableValue("scriptPath")));
+
+          std::string command = scriptPath + " \"" + zplCode + "\"";
+          system(command.c_str());
+
+          result->Success(flutter::EncodableValue("ZPL printed successfully"));
+        } else {
+          result->NotImplemented();
+        }
+      });
+
   ::MSG msg;
   while (::GetMessage(&msg, nullptr, 0, 0)) {
     ::TranslateMessage(&msg);
